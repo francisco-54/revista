@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Somos Fiducia</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Barlow+Condensed:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <script src="https://unpkg.com/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+
+    <style>
+        :root {
+            --gold:    #5bb8f5;
+            --gold-lt: #a8d8f0;
+            --dark:    #091824;
+            --cream:   #e8f4fc;
+            --red:     #1b4d72;
+            --accent:  #2a7fbf;
+            --book-w:  1000px;
+            --book-h:  650px;
+            --page-w:  500px;
+            --page-h:  650px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #091824; }
+        body { font-family: 'Barlow Condensed', sans-serif; }
+
+        /* ── Stage ─────────────────────────────────── */
+        #stage {
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(ellipse at 50% 0%,  #2a5f8a 0%, transparent 55%),
+                radial-gradient(ellipse at 20% 60%, #1b4d72 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, #0d2a45 0%, transparent 55%),
+                linear-gradient(160deg, #0d1b2e 0%, #0f2744 35%, #0d2235 65%, #091824 100%);
+            overflow: hidden;
+            touch-action: pan-x pan-y pinch-zoom;
+        }
+
+        /* ── Layout: posicionado y escalado 100% por JS ── */
+        #layout {
+            position: absolute;
+            top: 0; left: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+            transform-origin: top left;
+        }
+
+        /* ── Masthead ──────────────────────────────── */
+        #masthead {
+            width: var(--book-w);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 6px 14px;
+            border-bottom: 1px solid rgba(91,184,245,.3);
+            margin-bottom: 18px;
+            opacity: 0;
+            animation: fadeUp .6s .2s forwards;
+        }
+        #masthead .pub-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 17px; font-style: italic;
+            letter-spacing: .18em;
+            background: linear-gradient(90deg,#fff,#d8d8d8,#fff,#c8c8c8,#fff);
+            background-size: 300% 300%;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientMove 3s ease infinite;
+        }
+        #masthead .edition {
+            font-size: 12px; letter-spacing: .28em;
+            text-transform: uppercase; color: rgba(168,216,240,.55);
+        }
+
+        /* ── Viewer ────────────────────────────────── */
+        #viewer {
+            position: relative;
+            width: var(--book-w);
+            height: var(--book-h);
+            overflow: visible;
+            opacity: 0;
+            animation: fadeUp .7s .35s forwards;
+        }
+
+        /* ── StPageFlip container ──────────────────── */
+        #stpf-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: var(--book-w);
+            height: var(--book-h);
+        }
+
+        /* En móvil todo se ajusta al ancho de 1 página */
+        @media (max-width: 768px) {
+            #masthead          { width: var(--page-w); }
+            #viewer            { width: var(--page-w); }
+            #stpf-container    { width: var(--page-w); }
+            #footer            { width: var(--page-w); }
+        }
+
+        /* Páginas */
+        .stpf-page {
+            width: 500px; height: 650px;
+            overflow: hidden;
+            background: #1b4d72;
+        }
+        .stpf-page img {
+            width: 100%; height: 100%;
+            object-fit: cover; display: block;
+            user-select: none; -webkit-user-select: none;
+            pointer-events: none;
+            -webkit-user-drag: none;
+        }
+        .stpf-blank {
+            background: transparent !important;
+            pointer-events: none;
+        }
+
+        /* StPageFlip: fondo vacío transparente */
+        .stf__parent { box-shadow: none !important; background: transparent !important; }
+        .stf__block  { background: transparent !important; box-shadow: none !important; }
+
+        /* ── Nav buttons ───────────────────────────── */
+        .nav-btn {
+            position: absolute; top: 50%;
+            transform: translateY(-50%);
+            background: rgba(91,184,245,.1);
+            border: 1px solid rgba(91,184,245,.3);
+            color: var(--gold);
+            width: 44px; height: 76px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 30;
+            transition: background .2s, transform .2s;
+            border-radius: 4px; backdrop-filter: blur(4px);
+        }
+        .nav-btn:hover { background: rgba(91,184,245,.25); transform: translateY(-50%) scale(1.06); }
+        .nav-btn svg { pointer-events: none; }
+        #btn-prev { left: -62px; }
+        #btn-next { right: -62px; }
+        .nav-btn:disabled { opacity: .22; pointer-events: none; }
+
+        /* ── Footer ────────────────────────────────── */
+        #footer {
+            width: var(--book-w);
+            display: flex; align-items: center; gap: 16px;
+            padding: 16px 6px 0;
+            opacity: 0; animation: fadeUp .6s .5s forwards;
+        }
+        #progress-bar {
+            flex: 1; height: 2px;
+            background: rgba(91,184,245,.12);
+            border-radius: 2px; overflow: hidden;
+        }
+        #progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg,#1b4d72,#5bb8f5);
+            border-radius: 2px;
+            transition: width .5s cubic-bezier(.4,0,.2,1);
+            width: 0%;
+        }
+        #page-counter {
+            font-size: 12px; letter-spacing: .22em;
+            color: rgba(168,216,240,.45);
+            white-space: nowrap; min-width: 65px; text-align: right;
+        }
+
+        /* ── Mobile nav ────────────────────────────── */
+        #mobile-nav {
+            display: none;
+            width: 100%; position: fixed;
+            bottom: 0; left: 0; z-index: 100;
+            padding: 10px 24px 20px;
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+            background: linear-gradient(to top,rgba(9,24,36,.95),rgba(9,24,36,.7));
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(91,184,245,.15);
+            align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .mob-btn {
+            background: rgba(91,184,245,.12);
+            border: 1px solid rgba(91,184,245,.3);
+            color: var(--gold); width: 48px; height: 48px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; flex-shrink: 0;
+            transition: background .15s, transform .15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mob-btn:active { background: rgba(91,184,245,.3); transform: scale(.93); }
+        .mob-btn:disabled { opacity: .2; pointer-events: none; }
+        #mob-progress-wrap {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; gap: 6px;
+        }
+        #mob-counter { font-size: 11px; letter-spacing: .2em; color: rgba(168,216,240,.5); }
+        #mob-bar {
+            width: 100%; height: 3px;
+            background: rgba(91,184,245,.12); border-radius: 3px; overflow: hidden;
+        }
+        #mob-fill {
+            height: 100%;
+            background: linear-gradient(90deg,#1b4d72,#5bb8f5);
+            border-radius: 3px;
+            transition: width .4s cubic-bezier(.4,0,.2,1); width: 0%;
+        }
+
+        /* ── Loader ────────────────────────────────── */
+        #loader-screen {
+            position: fixed; inset: 0; background: #091824;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 1000; transition: opacity .6s ease;
+        }
+        #loader-screen.hidden { opacity: 0; pointer-events: none; }
+        .loader-logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px; font-style: italic;
+            margin-bottom: 28px; letter-spacing: .1em;
+            background: linear-gradient(90deg,#fff,#d8d8d8,#fff,#c8c8c8,#fff);
+            background-size: 300% 300%;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; animation: gradientMove 3s ease infinite;
+        }
+        .loader-ring {
+            width: 36px; height: 36px;
+            border: 2px solid rgba(91,184,245,.15);
+            border-top-color: #5bb8f5;
+            border-radius: 50%; animation: spin .8s linear infinite;
+        }
+        .loader-pct {
+            margin-top: 16px; font-size: 11px;
+            letter-spacing: .3em; color: rgba(168,216,240,.35);
+        }
+
+        /* ── Keyframes ─────────────────────────────── */
+        @keyframes fadeUp {
+            from { opacity:0; transform:translateY(12px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        @keyframes gradientMove {
+            0%,100% { background-position:0% 50%; }
+            50%      { background-position:100% 50%; }
+        }
+
+        /* ── Responsive ────────────────────────────── */
+        @media (max-width: 768px) {
+            #btn-prev, #btn-next { display: none !important; }
+            #mobile-nav { display: flex !important; }
+            #footer { display: none; }
+        }
+
+        /* ── Thumbnails — panel vertical izquierdo ── */
+        #thumb-nav {
+            display: none; position: fixed; left: 16px; top: 50%;
+            transform: translateY(-50%);
+            background: rgba(9,24,36,.82); backdrop-filter: blur(12px);
+            padding: 10px 8px; border-radius: 12px;
+            border: 1px solid rgba(91,184,245,.22);
+            flex-direction: column;
+            gap: 7px; z-index: 1000;
+            max-height: 85vh; overflow-y: auto; overflow-x: hidden;
+            scrollbar-width: thin; scrollbar-color: rgba(91,184,245,.3) transparent;
+        }
+        #thumb-nav::-webkit-scrollbar { width: 3px; }
+        #thumb-nav::-webkit-scrollbar-thumb { background: rgba(91,184,245,.3); border-radius: 3px; }
+        .thumb-item {
+            width: 38px; height: 52px;
+            background: var(--dark);
+            border: 2px solid transparent;
+            cursor: pointer; transition: all .2s ease;
+            object-fit: cover; border-radius: 4px; opacity: .55;
+            flex-shrink: 0;
+        }
+        .thumb-item:hover, .thumb-item.active {
+            border-color: var(--gold); opacity: 1; transform: translateX(3px);
+        }
+        @media (max-width: 768px), (max-height: 500px) { #thumb-nav { display: none !important; } }
+
+        /* ── Lightbox ──────────────────────────────── */
+        #lightbox {
+            display: none; position: fixed; inset: 0; z-index: 2000;
+            background: rgba(0,0,0,.93); backdrop-filter: blur(8px);
+            align-items: center; justify-content: center; touch-action: none;
+        }
+        #lightbox.active { display: flex; }
+        #lb-img {
+            display: block; max-width: 94vw; max-height: 94vh;
+            object-fit: contain; border-radius: 3px;
+            box-shadow: 0 8px 60px rgba(0,0,0,.8);
+            user-select: none; pointer-events: none;
+        }
+        #lb-close {
+            position: fixed; top: 14px; right: 18px; z-index: 2010;
+            width: 42px; height: 42px; border-radius: 50%;
+            background: rgba(9,24,36,.75);
+            border: 1px solid rgba(91,184,245,.4);
+            color: #5bb8f5; font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background .2s; backdrop-filter: blur(6px);
+        }
+        #lb-close:hover, #lb-close:active { background: rgba(91,184,245,.3); }
+    </style>
+</head>
+<body>
+
+<!-- Loader -->
+<div id="loader-screen">
+    <div class="loader-logo">Somos Fiducia</div>
+    <div class="loader-ring"></div>
+    <div class="loader-pct" id="loader-pct">0%</div>
+</div>
+
+<div id="stage">
+<div id="layout">
+
+    <div id="masthead">
+        <div class="pub-name">Somos Fiducia</div>
+        <div class="edition" id="edition-label"></div>
+    </div>
+
+    <div id="viewer">
+        <div id="stpf-container"></div>
+
+        <button class="nav-btn" id="btn-prev" aria-label="Anterior">
+            <svg width="14" height="24" viewBox="0 0 14 24" fill="none">
+                <polyline points="12,2 2,12 12,22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        <button class="nav-btn" id="btn-next" aria-label="Siguiente">
+            <svg width="14" height="24" viewBox="0 0 14 24" fill="none">
+                <polyline points="2,2 12,12 2,22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+    </div>
+
+    <div id="footer">
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <div id="page-counter">1 / 1</div>
+    </div>
+
+</div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" role="dialog" aria-modal="true">
+    <img id="lb-img" src="" alt="Imagen ampliada">
+    <button id="lb-close" aria-label="Cerrar">✕</button>
+</div>
+
+<!-- Thumbnails -->
+<div id="thumb-nav"></div>
+
+<!-- Mobile nav -->
+<div id="mobile-nav">
+    <button class="mob-btn" id="mob-prev" aria-label="Anterior">
+        <svg width="16" height="26" viewBox="0 0 14 24" fill="none">
+            <polyline points="12,2 2,12 12,22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </button>
+    <div id="mob-progress-wrap">
+        <div id="mob-counter">1 / 1</div>
+        <div id="mob-bar"><div id="mob-fill"></div></div>
+    </div>
+    <button class="mob-btn" id="mob-next" aria-label="Siguiente">
+        <svg width="16" height="26" viewBox="0 0 14 24" fill="none">
+            <polyline points="2,2 12,12 2,22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </button>
+</div>
+
+<script>
+/* ════════════════════════════════════════════
+   CONFIG
+   ════════════════════════════════════════════ */
+const CONFIG = {
+    imageFolder: 'imagenes/',
+
+    getDynamicTitle() {
+        const m = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const d = new Date();
+        return `Somos Fiducia — Edición ${m[d.getMonth()]} ${d.getFullYear()}`;
+    },
+
+    imageFiles: [
+        '1.png','2.png','3.png','4.png','5.png',
+        '6.png','7.png','8.png','9.png','10.png',
+        '11.png','12.png','13.png','14.png','15.png',
+    ],
+
+    SWIPE_THRESHOLD  : 40,
+    LOAD_CONCURRENCY : 3,
+    LOAD_RETRIES     : 2,
+    LOAD_TIMEOUT     : 20000,
+
+    BOOK_W: 1000,
+    BOOK_H: 650,
+    PAGE_W: 500,
+    PAGE_H: 650,
+};
+
+/* ── Helpers ────────────────────────────────── */
+function isMobile() { return window.innerWidth <= 768; }
+
+function getVP() {
+    return {
+        w: window.visualViewport ? window.visualViewport.width  : window.innerWidth,
+        h: window.visualViewport ? window.visualViewport.height : window.innerHeight,
+    };
+}
+
+/* ── Scale — un solo sistema para todos los dispositivos ── */
+function applyScale() {
+    const layout  = document.getElementById('layout');
+    const { w: vw, h: vh } = getVP();
+    const mobile  = isMobile();
+
+    /* En móvil el libro muestra 1 página (portrait), en desktop 2 */
+    const bookW   = mobile ? CONFIG.PAGE_W : CONFIG.BOOK_W;
+    const navH    = mobile ? 80 : 0;   /* altura del nav inferior móvil */
+    const padX    = mobile ? 8  : 80;  /* margen lateral (espacio pa botones) */
+    const padY    = mobile ? 8  : 40;
+    const headerH = 96;                /* masthead + footer */
+
+    const availW  = vw - padX * 2;
+    const availH  = vh - padY * 2 - navH;
+    const totalH  = CONFIG.BOOK_H + headerH;
+
+    const scale   = Math.max(0.2, Math.min(availW / bookW, availH / totalH));
+
+    const scaledW = bookW  * scale;
+    const scaledH = totalH * scale;
+    const x = (vw - scaledW) / 2;
+    const y = Math.max(padY / 2, (vh - navH - scaledH) / 2);
+
+    layout.style.transformOrigin = 'top left';
+    layout.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+}
+
+/* ── Image loading ──────────────────────────── */
+function loadImage(src, retries = CONFIG.LOAD_RETRIES, timeout = CONFIG.LOAD_TIMEOUT) {
+    return new Promise((resolve, reject) => {
+        function attempt(n) {
+            const img   = new Image();
+            const timer = setTimeout(() => {
+                img.src = '';
+                n > 0 ? attempt(n - 1) : reject(new Error('Timeout: ' + src));
+            }, timeout);
+            img.onload  = () => { clearTimeout(timer); resolve(src); };
+            img.onerror = () => { clearTimeout(timer); n > 0 ? attempt(n - 1) : reject(new Error(src)); };
+            img.src = src;
+        }
+        attempt(retries);
+    });
+}
+
+async function loadAllImages() {
+    const files = CONFIG.imageFiles;
+    let loaded  = 0;
+    const tasks = files.map(file => () =>
+        loadImage(CONFIG.imageFolder + file)
+            .catch(() => {})
+            .finally(() => {
+                loaded++;
+                const el = document.getElementById('loader-pct');
+                if (el) el.textContent = Math.round((loaded / files.length) * 100) + '%';
+            })
+    );
+    for (let i = 0; i < tasks.length; i += CONFIG.LOAD_CONCURRENCY) {
+        await Promise.allSettled(tasks.slice(i, i + CONFIG.LOAD_CONCURRENCY).map(fn => fn()));
+    }
+}
+
+/* ════════════════════════════════════════════
+   StPageFlip — único motor
+   ════════════════════════════════════════════ */
+let pageFlip = null;
+
+function initFlipBook() {
+    const container = document.getElementById('stpf-container');
+    const files     = CONFIG.imageFiles;
+    const folder    = CONFIG.imageFolder;
+    const total     = files.length;
+    const mobile    = isMobile();
+
+    pageFlip = new St.PageFlip(container, {
+        width               : CONFIG.PAGE_W,
+        height              : CONFIG.PAGE_H,
+        size                : 'fixed',
+        minWidth            : CONFIG.PAGE_W,
+        maxWidth            : CONFIG.PAGE_W,
+        minHeight           : CONFIG.PAGE_H,
+        maxHeight           : CONFIG.PAGE_H,
+        showCover           : false,
+        usePortrait         : mobile,   /* 1 página en móvil, 2 en desktop */
+        startPage           : 0,
+        drawShadow          : true,
+        flippingTime        : 700,
+        useMouseEvents      : true,
+        swipeDistance       : CONFIG.SWIPE_THRESHOLD,
+        mobileScrollSupport : false,
+        clickEventForward   : true,
+        disableFlipByClick  : false,
+    });
+
+    /* Página fantasma izquierda solo en desktop (spread de 2 páginas):
+       hace que la portada quede sola a la derecha con el mismo flip    */
+    const blank = document.createElement('div');
+    blank.className = 'stpf-page stpf-blank';
+
+    const realPages = files.map((file, i) => {
+        const div = document.createElement('div');
+        div.className = 'stpf-page';
+        const img = document.createElement('img');
+        img.src       = folder + file;
+        img.alt       = i === 0 ? 'Portada' : i === total - 1 ? 'Contraportada' : `Página ${i + 1}`;
+        img.draggable = false;
+        div.appendChild(img);
+        return div;
+    });
+
+    const pageEls = mobile ? realPages : [blank, ...realPages];
+
+    pageFlip.loadFromHTML(pageEls);
+
+    const blankOffset = mobile ? 0 : 1;
+
+    pageFlip.on('flip', (e) => {
+        playPageTurnSound();
+        updateUI(Math.max(1, e.data - blankOffset + 1), total);
+    });
+    pageFlip.on('changeState', () => {
+        const p = pageFlip.getCurrentPageIndex();
+        updateUI(Math.max(1, p - blankOffset + 1), total);
+    });
+
+    updateUI(1, total);
+}
+
+/* ── updateUI ───────────────────────────────── */
+function updateUI(page, total) {
+    const pct = total > 1 ? ((page - 1) / (total - 1)) * 100 : 100;
+
+    const fillD  = document.getElementById('progress-fill');
+    const countD = document.getElementById('page-counter');
+    const fillM  = document.getElementById('mob-fill');
+    const countM = document.getElementById('mob-counter');
+    if (fillD)  fillD.style.width  = pct + '%';
+    if (countD) countD.textContent = page + ' / ' + total;
+    if (fillM)  fillM.style.width  = pct + '%';
+    if (countM) countM.textContent = page + ' / ' + total;
+
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const mobPrev = document.getElementById('mob-prev');
+    const mobNext = document.getElementById('mob-next');
+    if (btnPrev) btnPrev.disabled = (page <= 1);
+    if (btnNext) btnNext.disabled = (page >= total);
+    if (mobPrev) mobPrev.disabled = (page <= 1);
+    if (mobNext) mobNext.disabled = (page >= total);
+
+    document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('active'));
+    const th = document.getElementById('thumb-' + page);
+    if (th) {
+        th.classList.add('active');
+        th.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'nearest' });
+    }
+}
+
+/* ── Thumbnails ─────────────────────────────── */
+function buildThumbnails() {
+    if (isMobile()) return;
+    const nav = document.getElementById('thumb-nav');
+    nav.style.display = 'flex';
+
+    CONFIG.imageFiles.forEach((file, index) => {
+        const img     = document.createElement('img');
+        img.src       = CONFIG.imageFolder + file;
+        img.className = 'thumb-item';
+        img.id        = `thumb-${index + 1}`;
+        img.onclick   = () => { if (pageFlip) pageFlip.turnToPage(index + 1); }; /* +1 por fantasma */
+        nav.appendChild(img);
+    });
+}
+
+/* ── Controls ───────────────────────────────── */
+function bindControls() {
+    const initAudio = () => { _getCtx(); _loadBuffer(); };
+    document.addEventListener('touchstart', initAudio, { once: true });
+    document.addEventListener('click',      initAudio, { once: true });
+
+    document.addEventListener('keydown', e => {
+        if (!pageFlip) return;
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    pageFlip.flipPrev();
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown')   pageFlip.flipNext();
+        if (e.key === 'Home') pageFlip.turnToPage(0);
+        if (e.key === 'End')  pageFlip.turnToPage(CONFIG.imageFiles.length);
+    });
+
+    document.getElementById('btn-prev').addEventListener('click', () => pageFlip && pageFlip.flipPrev());
+    document.getElementById('btn-next').addEventListener('click', () => pageFlip && pageFlip.flipNext());
+    document.getElementById('mob-prev').addEventListener('click', () => pageFlip && pageFlip.flipPrev());
+    document.getElementById('mob-next').addEventListener('click', () => pageFlip && pageFlip.flipNext());
+
+    window.addEventListener('resize', () => applyScale());
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => applyScale());
+        window.visualViewport.addEventListener('scroll', () => applyScale());
+    }
+}
+
+/* ── Lightbox ───────────────────────────────── */
+(function () {
+    const lb      = document.getElementById('lightbox');
+    const lbImg   = document.getElementById('lb-img');
+    const lbClose = document.getElementById('lb-close');
+
+    function open(src) { lbImg.src = src; lb.classList.add('active'); }
+    function close()   { lb.classList.remove('active'); lbImg.src = ''; }
+
+    document.getElementById('stpf-container').addEventListener('click', e => {
+        const img = e.target.closest('img');
+        if (img && img.src && !img.src.startsWith('data:')) open(img.src);
+    });
+    lbClose.addEventListener('click', close);
+    lb.addEventListener('click', e => { if (e.target === lb) close(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && lb.classList.contains('active')) close();
+    });
+    lb.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+})();
+
+/* ── Audio ──────────────────────────────────── */
+const PAGE_TURN_SOUND = 'hoja.mp3';
+let _actx = null, _buffer = null;
+
+function _getCtx() {
+    if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_actx.state === 'suspended') _actx.resume();
+    return _actx;
+}
+function _loadBuffer() {
+    if (_buffer !== null) return;
+    _buffer = 'loading';
+    fetch(PAGE_TURN_SOUND + '?nc=' + Date.now())
+        .then(r => r.arrayBuffer())
+        .then(ab => _getCtx().decodeAudioData(ab))
+        .then(buf => { _buffer = buf; })
+        .catch(() => { _buffer = false; });
+}
+function playPageTurnSound() {
+    if (!PAGE_TURN_SOUND) return;
+    if (_buffer && _buffer !== 'loading') {
+        try {
+            const ctx  = _getCtx();
+            const src  = ctx.createBufferSource();
+            const gain = ctx.createGain();
+            src.buffer = _buffer; gain.gain.value = 0.8;
+            src.connect(gain); gain.connect(ctx.destination); src.start(0);
+            return;
+        } catch(e) {}
+    }
+    try {
+        const sfx = new Audio(PAGE_TURN_SOUND + '?nc=' + Date.now());
+        sfx.volume = 0.8; sfx.play().catch(() => {});
+    } catch(e) {}
+}
+
+/* ── Init ───────────────────────────────────── */
+(async function () {
+    try {
+        const el = document.getElementById('edition-label');
+        if (el) el.textContent = CONFIG.getDynamicTitle();
+
+        await loadAllImages();
+
+        const loader = document.getElementById('loader-screen');
+        if (loader) {
+            loader.classList.add('hidden');
+            setTimeout(() => loader.remove(), 700);
+        }
+
+        applyScale();
+        buildThumbnails();
+        initFlipBook();
+        bindControls();
+    } catch(err) {
+        console.error('Error al iniciar la revista:', err);
+    }
+})();
+</script>
+</body>
+</html>
